@@ -2,7 +2,7 @@
 import React, { useMemo, useRef } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip, ReferenceLine, CartesianGrid } from 'recharts';
 import { AnalysisResult } from '../types';
-import { Activity, PlayCircle } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
 
 interface TimelineProps {
   analysis: AnalysisResult | null;
@@ -13,6 +13,9 @@ interface TimelineProps {
 
 const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, onSeek }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Find the Fall event to calculate gradient offset
+  const fallEvent = useMemo(() => analysis?.events.find(e => e.type === 'FALL'), [analysis]);
 
   // Generate data for the chart based on analysis or defaults
   const data = useMemo(() => {
@@ -33,7 +36,7 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
       
       if (event?.type === 'FALL') {
          // Disturbed waveform: High amplitude, high frequency noise
-         value = 50 + (Math.random() - 0.5) * 50 + Math.sin(time * 50) * 20;
+         value = 50 + (Math.random() - 0.5) * 60 + Math.sin(time * 50) * 20;
       } else if (event?.type === 'UNSTEADY') {
          // Moderate disturbance
          value = 30 + Math.sin(time * 10) * 10 + (Math.random() - 0.5) * 10;
@@ -52,6 +55,17 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
     }
     return points;
   }, [analysis, duration]);
+
+  // Calculate the percentage where the Fall happens to split the gradient color
+  const gradientOffset = useMemo(() => {
+    if (!fallEvent || !data.length) return 0;
+    const maxTime = data[data.length - 1].time;
+    if (maxTime <= 0) return 0;
+    
+    // Calculate percentage (0 to 1)
+    const offset = fallEvent.timeOffset / maxTime;
+    return Math.min(Math.max(offset, 0), 1); // Clamp between 0 and 1
+  }, [fallEvent, data]);
 
   const activeEvent = analysis?.events.find(e => Math.abs(e.timeOffset - currentTime) < 1.5);
 
@@ -76,7 +90,7 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
             <h3 className="text-stone-800 font-semibold text-lg">Analysis Timeline</h3>
             {activeEvent && (
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase animate-pulse ${
-                    activeEvent.type === 'FALL' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
+                    activeEvent.type === 'FALL' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'
                 }`}>
                 {activeEvent.type}
                 </span>
@@ -103,11 +117,19 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                  {/* Fill Gradient (Orange/Red Fade) */}
+                  <linearGradient id="fillGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.1}/>
                     <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
                   </linearGradient>
+
+                  {/* Stroke Gradient: Green until Fall, then Red */}
+                  <linearGradient id="strokeGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset={gradientOffset} stopColor="#10b981" /> {/* Emerald Green */}
+                    <stop offset={gradientOffset} stopColor="#ef4444" /> {/* Red */}
+                  </linearGradient>
                 </defs>
+                
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
                 <XAxis dataKey="time" hide />
                 <Tooltip 
@@ -119,9 +141,9 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
                 <Area 
                   type="monotone" 
                   dataKey="value" 
-                  stroke="#f97316" 
+                  stroke="url(#strokeGradient)" 
                   strokeWidth={2}
-                  fill="url(#colorValue)" 
+                  fill="url(#fillGradient)" 
                   animationDuration={300}
                 />
                 
@@ -130,14 +152,14 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
                    <ReferenceLine 
                      key={i} 
                      x={e.timeOffset} 
-                     stroke={e.type === 'FALL' ? '#ef4444' : '#f59e0b'} 
+                     stroke={e.type === 'FALL' ? '#ef4444' : '#10b981'} 
                      strokeDasharray="3 3" 
                      label={{ 
                        value: e.type === 'FALL' ? 'FALL' : '', 
                        position: 'top', 
                        fill: '#ef4444', 
-                       fontSize: 10,
-                       fontWeight: 'bold' 
+                       fontSize: 14, // Increased size
+                       fontWeight: 900 // Extra bold
                      }}
                    />
                 ))}
@@ -163,7 +185,7 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
       <div className="mt-3 flex items-center justify-between text-xs text-stone-400 border-t border-stone-100 pt-3">
          <div className="flex space-x-4">
             <div className="flex items-center space-x-1.5">
-               <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                <span>No Event</span>
             </div>
             <div className="flex items-center space-x-1.5">
@@ -171,7 +193,7 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
                <span>Fall Event</span>
             </div>
          </div>
-         <div className="flex items-center space-x-1 text-stone-500 font-medium cursor-pointer hover:text-orange-600 transition" onClick={() => onSeek && onSeek(0)}>
+         <div className="flex items-center space-x-1 text-stone-500 font-medium cursor-pointer hover:text-emerald-600 transition" onClick={() => onSeek && onSeek(0)}>
             <PlayCircle size={14} />
             <span>Replay Event</span>
          </div>
