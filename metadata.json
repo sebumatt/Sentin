@@ -1,0 +1,5 @@
+{
+  "name": "Sentin - Fall Detection & Care",
+  "description": "A comprehensive elderly monitoring dashboard using Gemini 1.5 Pro for video analysis, fall detection, and resident tracking.",
+  "requestFramePermissions": []
+}
