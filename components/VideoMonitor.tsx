@@ -111,6 +111,13 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
   return (
     <div className="relative h-full w-full bg-stone-900 rounded-3xl overflow-hidden shadow-md group border border-stone-800">
       
+      {/* Visual Alarm Overlay (Blinking Red Effect) */}
+      {currentEvent === 'FALL' && (
+        <div className="absolute inset-0 z-40 pointer-events-none animate-pulse bg-red-500/20 mix-blend-overlay ring-[12px] ring-inset ring-red-500/50">
+           <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_60%,rgba(220,38,38,0.5)_100%)]"></div>
+        </div>
+      )}
+
       {/* Analysis Status Tab (Top Left) */}
       {(isAnalyzing || analysisPhase) && (
         <div className="absolute top-4 left-4 z-50">

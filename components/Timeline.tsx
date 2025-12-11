@@ -58,9 +58,13 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
 
   // Calculate the percentage where the Fall happens to split the gradient color
   const gradientOffset = useMemo(() => {
-    if (!fallEvent || !data.length) return 0;
+    // If no data, default to Green (1)
+    if (!data.length) return 1;
     const maxTime = data[data.length - 1].time;
-    if (maxTime <= 0) return 0;
+    if (maxTime <= 0) return 1;
+
+    // If no fall event, the whole line should be Green (offset 1)
+    if (!fallEvent) return 1;
     
     // Calculate percentage (0 to 1)
     const offset = fallEvent.timeOffset / maxTime;
@@ -154,13 +158,6 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
                      x={e.timeOffset} 
                      stroke={e.type === 'FALL' ? '#ef4444' : '#10b981'} 
                      strokeDasharray="3 3" 
-                     label={{ 
-                       value: e.type === 'FALL' ? 'FALL' : '', 
-                       position: 'top', 
-                       fill: '#ef4444', 
-                       fontSize: 14, // Increased size
-                       fontWeight: 900 // Extra bold
-                     }}
                    />
                 ))}
                 
