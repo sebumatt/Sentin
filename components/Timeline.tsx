@@ -190,10 +190,6 @@ const Timeline: React.FC<TimelineProps> = ({ analysis, currentTime, duration, on
                <span>Fall Event</span>
             </div>
          </div>
-         <div className="flex items-center space-x-1 text-stone-500 font-medium cursor-pointer hover:text-emerald-600 transition" onClick={() => onSeek && onSeek(0)}>
-            <PlayCircle size={14} />
-            <span>Replay Event</span>
-         </div>
       </div>
     </div>
   );

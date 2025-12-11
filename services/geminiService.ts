@@ -1,32 +1,7 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AnalysisResult } from "../types";
-
-const SYSTEM_INSTRUCTION_ANALYSIS = `
-You are an advanced medical AI assistant specializing in elderly care and fall detection.
-Your task is to analyze video footage of a resident in their home with forensic precision.
-
-CRITICAL OBJECTIVES:
-1. **Fall Detection**: Identify falls by looking for rapid descent, sudden loss of balance, or the subject ending up on the floor. Mark the exact timestamp of impact.
-2. **Gait Analysis**: Detect specific abnormalities such as shuffling, staggering, hesitation, or clutching furniture for support.
-3. **Chronological Log**: Provide a second-by-second (or key event based) log of what is happening. E.g., "0:01 - Resident enters", "0:02 - Walks towards chair", "0:03 - Trips on rug".
-4. **Environmental Hazards**: Identify specific objects in the room (e.g., Rugs, Cables, Furniture) that pose a trip hazard. Classify risk as High/Medium/Low. Keep descriptions extremely concise (e.g. "Loose Rug", "Coffee Table").
-5. **Vitals Estimation**: Estimate heart rate and activity level.
-
-OUTPUT FORMAT:
-Return a raw JSON object. Do not use Markdown.
-Structure:
-{
-  "vitals": { ... },
-  "events": [ ... ],
-  "hazards": [ ... ],
-  "logs": [
-    { "timeOffset": number, "timestamp": string, "description": string }
-  ],
-  "summary": string,
-  "riskAssessment": { ... }
-}
-`;
+import { getExperimentVariant, logExperimentResult } from "./promptExperiments";
 
 const responseSchemaAnalysis: Schema = {
   type: Type.OBJECT,
@@ -93,6 +68,12 @@ const responseSchemaAnalysis: Schema = {
 // --- Main Analysis Logic ---
 export const analyzeVideo = async (base64Video: string, mimeType: string): Promise<AnalysisResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  // A/B Testing: Select a prompt variant
+  const variant = getExperimentVariant();
+  console.log(`[A/B Experiment] Running variant: ${variant.name} (${variant.id})`);
+  
+  const startTime = performance.now();
 
   try {
     console.log("Starting Gemini Video Analysis (Events, Hazards & Logs)...");
@@ -112,7 +93,7 @@ export const analyzeVideo = async (base64Video: string, mimeType: string): Promi
         ],
       },
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION_ANALYSIS,
+        systemInstruction: variant.systemInstruction, // Use selected variant
         responseMimeType: "application/json",
         responseSchema: responseSchemaAnalysis,
       },
@@ -127,10 +108,21 @@ export const analyzeVideo = async (base64Video: string, mimeType: string): Promi
         text = text.replace(/^```\n/, "").replace(/\n```$/, "");
     }
 
-    return JSON.parse(text) as AnalysisResult;
+    const result = JSON.parse(text) as AnalysisResult;
+    
+    // Log success
+    const duration = performance.now() - startTime;
+    logExperimentResult(variant.id, duration, true);
+
+    return result;
 
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
+    
+    // Log failure
+    const duration = performance.now() - startTime;
+    logExperimentResult(variant.id, duration, false, (error as Error).message);
+    
     throw error;
   }
 };
