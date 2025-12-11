@@ -78,7 +78,7 @@ export const analyzeVideo = async (base64Video: string, mimeType: string): Promi
   try {
     console.log("Starting Gemini Video Analysis (Events, Hazards & Logs)...");
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       contents: {
         parts: [
           {
